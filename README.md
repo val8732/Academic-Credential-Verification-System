@@ -12,15 +12,15 @@
 
 ### Backend
 
-cd blockchain-backend
-npm install
-node server.js
+-cd blockchain-backend
+-npm install
+-node server.js
 
 ### Frontend
 
-cd credential-frontend
-npm install
-npm start
+-cd credential-frontend
+-npm install
+-npm start
 
 ## Tech Stack
 
