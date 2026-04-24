@@ -6,6 +6,7 @@
 - Verify credentials
 - QR code verification
 - File upload (certificate)
+- Hashing Mechanism
 - MySQL database integration
 
 ## Setup Instructions
