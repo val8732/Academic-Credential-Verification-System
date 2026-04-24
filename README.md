@@ -7,7 +7,7 @@
 - QR code verification
 - File upload (certificate)
 - Hashing Mechanism
-- MySQL database integration
+- MySQL database integration (runs locally using MySQL (via XAMPP/phpMyAdmin))
 
 ## Setup Instructions
 
