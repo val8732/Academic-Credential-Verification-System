@@ -22,7 +22,7 @@ cd credential-frontend
 npm install
 npm start
 
-## 🛠 Tech Stack
+## Tech Stack
 
 - React.js
 - Node.js / Express
