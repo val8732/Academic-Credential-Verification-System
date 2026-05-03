@@ -50,13 +50,13 @@ Open XAMPP
 Start Apache and MySQL
 
 3️⃣ Setup Database
-Option A (Recommended)
+
 Open phpMyAdmin → http://localhost/phpmyadmin
 
 Create database:
 
 academic_credentials
-Import database.sql
+Import credentials.sql (found in backend folder)
 
 4️⃣ Start Blockchain (Hardhat)
 Open terminal:
