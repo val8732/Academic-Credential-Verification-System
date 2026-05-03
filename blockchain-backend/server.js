@@ -14,14 +14,15 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const db = mysql.createConnection({
+const db = mysql.createPool({
   host: 'localhost',
   user: 'root',
   password: '',
   database: 'academic_credentials',
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0,
 });
-
-db.connect(() => console.log('MySQL Connected'));
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -51,7 +52,7 @@ app.post('/credentials', upload.single('file'), (req, res) => {
   const { credentialId, studentName, institution, course, hash, isEditing } =
     req.body;
 
-  const fileUrl = req.file ? req.file.filename : null;
+  const fileUrl = req.file ? req.file.filename : '';
 
   let sql, values;
 
@@ -65,7 +66,10 @@ app.post('/credentials', upload.single('file'), (req, res) => {
   }
 
   db.query(sql, values, (err) => {
-    if (err) return res.status(500).send(err);
+    if (err) {
+      console.error('DB ERROR:', err); // 👈 THIS  LINE
+      return res.status(500).send(err.message);
+    }
     res.send('Saved');
   });
 });

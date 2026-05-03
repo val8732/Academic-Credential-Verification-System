@@ -20,6 +20,10 @@ function IssueCredential({ setIssuedCount }) {
   const [editingId, setEditingId] = useState(null);
 
   const handleIssue = async () => {
+    // CLEAR OLD STATES
+    setError('');
+    setMessage('');
+
     if (!studentName || !course || !institution || !credentialId) {
       setError('Please fill in all fields.');
       return;
@@ -28,6 +32,7 @@ function IssueCredential({ setIssuedCount }) {
     try {
       const contract = await getContract();
 
+      // HASH
       const baseHash = ethers.utils.keccak256(
         ethers.utils.toUtf8Bytes(
           `${credentialId}-${studentName}-${course}-${institution}`,
@@ -37,7 +42,22 @@ function IssueCredential({ setIssuedCount }) {
       const finalHash = fileHash || baseHash;
       setGeneratedHash(finalHash);
 
-      // BLOCKCHAIN
+      // STEP 1: SAVE TO DATABASE
+      const formData = new FormData();
+      formData.append('credentialId', credentialId);
+      formData.append('studentName', studentName);
+      formData.append('institution', institution);
+      formData.append('course', course);
+      formData.append('hash', finalHash);
+      formData.append('isEditing', isEditing);
+
+      if (file) formData.append('file', file);
+
+      await axios.post('http://localhost:5000/credentials', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      //  STEP 2: BLOCKCHAIN
       if (!isEditing) {
         try {
           const tx = await contract.issueCredential(
@@ -50,60 +70,48 @@ function IssueCredential({ setIssuedCount }) {
           await tx.wait();
           setIssuedCount((prev) => prev + 1);
         } catch (err) {
-          setError('Credential already exists on blockchain!');
-          return;
+          console.error('BLOCKCHAIN WARNING:', err);
+
+          if (err.message && err.message.includes('Already exists')) {
+            setError('Credential already exists on blockchain!');
+            return;
+          }
         }
+
+        //  SUCCESS
+        setMessage('Credential Issued Successfully');
+        setShowQR(true);
+
+        const newCredential = {
+          credentialId,
+          studentName,
+          course,
+          institution,
+          hash: finalHash,
+        };
+
+        if (isEditing) {
+          const updated = history.map((item) =>
+            item.credentialId === editingId ? newCredential : item,
+          );
+          setHistory(updated);
+        } else {
+          setHistory([...history, newCredential]);
+        }
+
+        // RESET FORM
+        setIsEditing(false);
+        setEditingId(null);
+        setCredentialId('');
+        setStudentName('');
+        setCourse('');
+        setInstitution('');
+        setFile(null);
+        setFileHash('');
       }
-
-      // BACKEND (FILE UPLOAD)
-      const formData = new FormData();
-      formData.append('credentialId', credentialId);
-      formData.append('studentName', studentName);
-      formData.append('institution', institution);
-      formData.append('course', course);
-      formData.append('hash', finalHash);
-      formData.append('isEditing', isEditing);
-
-      if (file) {
-        formData.append('file', file);
-      }
-
-      await axios.post('http://localhost:5000/credentials', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-
-      setMessage('Credential Issued Successfully');
-      setError('');
-      setShowQR(true);
-
-      const newCredential = {
-        credentialId,
-        studentName,
-        course,
-        institution,
-        hash: finalHash,
-      };
-
-      if (isEditing) {
-        const updated = history.map((item) =>
-          item.credentialId === editingId ? newCredential : item,
-        );
-        setHistory(updated);
-      } else {
-        setHistory([...history, newCredential]);
-      }
-
-      // RESET
-      setIsEditing(false);
-      setEditingId(null);
-      setCredentialId('');
-      setStudentName('');
-      setCourse('');
-      setInstitution('');
-      setFile(null);
-      setFileHash('');
     } catch (err) {
-      setError('Failed to save to database!');
+      console.error('DB ERROR:', err);
+      setError(err.message || 'Failed to save to database!');
       setShowQR(false);
     }
   };
@@ -135,12 +143,13 @@ function IssueCredential({ setIssuedCount }) {
   return (
     <div className="card">
       <h2>Issue Credential</h2>
-      {/* EDIT */}
+
       {isEditing && (
         <div style={{ color: '#f39c12', fontWeight: 'bold' }}>
           Editing Mode...
         </div>
       )}
+
       <div className="form-row">
         <input
           placeholder="Credential ID"
@@ -173,27 +182,33 @@ function IssueCredential({ setIssuedCount }) {
 
       <button onClick={handleIssue}>{isEditing ? 'Update' : 'Issue'}</button>
 
-      {message && <p>{message}</p>}
+      {/* MESSAGES */}
+      {message && <p style={{ color: 'green' }}>{message}</p>}
       {error && <p style={{ color: 'red' }}>{error}</p>}
 
-      {/* SIMPLE QR */}
+      {/* QR */}
       {showQR && (
         <QRCodeCanvas
           value={`ID:${credentialId}
-           Name:${studentName}
-           Course:${course}
-           Institution:${institution}
-           Hash:${fileHash}`}
+Name:${studentName}
+Course:${course}
+Institution:${institution}
+Hash:${generatedHash}`}
           size={150}
         />
       )}
-      {/* HASHING */}
+
+      {/* FILE INFO */}
+      {file && <p style={{ marginTop: '10px' }}>📄 File: {file.name}</p>}
+
+      {/* HASH */}
       {generatedHash && (
         <div className="hash-box">
           <strong>🔐 Credential Hash:</strong>
           <p style={{ wordBreak: 'break-all' }}>{generatedHash}</p>
         </div>
       )}
+
       {/* HISTORY */}
       {history.length > 0 && (
         <div style={{ marginTop: '20px' }}>
@@ -202,7 +217,6 @@ function IssueCredential({ setIssuedCount }) {
           {history.map((item, index) => (
             <div key={index} className="history-card">
               <button onClick={() => handleEdit(item)}>Edit</button>
-              <button onClick={() => handleDelete(index)}>Delete</button>
 
               <p>
                 <strong>ID:</strong> {item.credentialId}
